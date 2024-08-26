@@ -642,10 +642,10 @@ DJCi500.setReloopLight = function(status, value) {
 //midi.sendShortMsg(status, 0x50, value);
 };
 
-DJCi500.setLoopButtonLights = function(status, value) {
+/* DJCi500.setLoopButtonLights = function(status, value) {
   midi.sendShortMsg(status, 0x09, value); //DJCi500.setLoopButtonLights(0x91, 0x7F);
   midi.sendShortMsg(status, 0x0A, value); //DJCi500.setLoopButtonLights(0x92, 0x7F);
-};
+}; */
 
 DJCi500.startLoopLightsBlink = function(channel, control, status, group) {
   var blink = 0x7F;
@@ -685,19 +685,37 @@ DJCi500.stopLoopLightsBlink = function(group, control, status) {
   DJCi500.setLoopButtonLights(status, 0x7F);
 };
 
-DJCi500.loopToggle = function(value, group, control) {
-  const status = group === '[Channel1]' ? 0x91 : 0x92,
-      channel = group === '[Channel1]' ? 0 : 1;
+DJCi500.loopToggle = function(control, value, group) {
+  var status, channel;
+
+  switch(group){
+    case '[Channel1]':
+      status = 0x91;
+      channel = 1;
+      break;
+    case '[Channel2]':
+      status = 0x92;
+      channel = 2;
+      break;
+    case '[Channel3]':
+      status = 0x91;
+      channel = 3;
+      break;
+    case '[Channel4]':
+      status = 0x92;
+      channel = 4;
+      break;
+  };
 
   DJCi500.setReloopLight(status, value ? 0x7F : 0x00);
 
   if (value) {
-      DJCi500.startLoopLightsBlink(channel, control, status, group);
+    DJCi500.startLoopLightsBlink(channel, control, status, group);
   } else {
-      DJCi500.stopLoopLightsBlink(group, control, status);
-      DJCi500.loopAdjustIn[channel-1] = false;
-      DJCi500.loopAdjustOut[channel-1] = false;
-  }
+    DJCi500.stopLoopLightsBlink(group, control, status);
+    DJCi500.loopAdjustIn[channel-1] = false;
+    DJCi500.loopAdjustOut[channel-1] = false;
+  };
 };
 
 DJCi500.cueLoopCallLeft = function(_channel, _control, value, _status, group) {
@@ -1609,6 +1627,12 @@ DJCi500.init = function () {
   engine.makeConnection('[Channel4]', 'play_indicator', DJCi500.numberIndicator);
   engine.getValue('[Channel4]', 'play_indicator', DJCi500.numberIndicator);
 
+  // Connect Loop In/Out leds
+  engine.makeConnection('[Channel1]', 'loop_enabled', DJCi500.loopToggle);
+  engine.makeConnection('[Channel2]', 'loop_enabled', DJCi500.loopToggle);
+  engine.makeConnection('[Channel3]', 'loop_enabled', DJCi500.loopToggle);
+  engine.makeConnection('[Channel4]', 'loop_enabled', DJCi500.loopToggle);
+
   // Connect the FX selection leds
   engine.makeConnection('[EffectRack1_EffectUnit1]', 'group_[Channel1]_enable', DJCi500.fxSelIndicator);
   engine.makeConnection('[EffectRack1_EffectUnit2]', 'group_[Channel1]_enable', DJCi500.fxSelIndicator);
@@ -1637,15 +1661,6 @@ DJCi500.init = function () {
   engine.softTakeover('[Master]', 'crossfader', true);
   engine.softTakeoverIgnoreNextValue('[Master]', 'crossfader');
 
-  //Loop blink
-  DJCi500.setLoopButtonLights(0x91, 0x7F);
-  DJCi500.setLoopButtonLights(0x92, 0x7F);
-
-  engine.makeConnection('[Channel1]', 'loop_enabled', DJCi500.loopToggle);
-  engine.makeConnection('[Channel2]', 'loop_enabled', DJCi500.loopToggle);
-  engine.makeConnection('[Channel3]', 'loop_enabled', DJCi500.loopToggle);
-  engine.makeConnection('[Channel4]', 'loop_enabled', DJCi500.loopToggle);
- 
   // Connect the slicer beats
   DJCi500.slicerBeat1 = engine.makeConnection('[Channel1]', 'beat_active', DJCi500.slicerBeatActive);
   DJCi500.slicerBeat2 = engine.makeConnection('[Channel2]', 'beat_active', DJCi500.slicerBeatActive);
@@ -1709,6 +1724,12 @@ DJCi500.init = function () {
   // FX buttons, light them to signal the current deck 1 and 2 as active
   midi.sendShortMsg(0x90, 0x14, 0x7F);
   midi.sendShortMsg(0x90, 0x15, 0x7F);
+
+  //Loop blink
+  midi.sendShortMsg(0x91, 0x09, 0x7F);
+  midi.sendShortMsg(0x91, 0x09, 0x7F);
+  midi.sendShortMsg(0x92, 0x09, 0x7F);
+  midi.sendShortMsg(0x92, 0x09, 0x7F);
 
   // create an instance of your custom Deck object for each side of your controller
   DJCi500.deckA = new DJCi500.Deck([1, 3], 1);
